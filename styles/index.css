@@ -1,0 +1,35 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Abel';
+    min-width: 300px;
+    background-color: #1DB954;
+}
+
+.popup {
+    margin: 0;
+    padding: 0;
+    border-radius: 5px;
+    background-color: #1DB954;
+}
+
+#messageBox {
+    display: none;
+}
+
+@font-face {
+    font-family: Abel;
+    src: url(./Abel.ttf);
+}
+
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #1f1f1f;
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    body {
+        background-color: #e2e2e2;
+    }
+}
