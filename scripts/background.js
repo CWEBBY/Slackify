@@ -1,76 +1,101 @@
 console.log("Slackify:background.js, cwebby.");
 
 // Imports
-import * as Config from "../config.js";
-import { Spotify } from "./spotify.js";
-import { Slack } from "./slack.js";
+//import { Spotify } from "./spotify.js";
+//import { Slack } from "./slack.js";
+import { pad } from "./utils.js";
+
+// Consts
+const TICK_HZ = 1;//0.075;
 
 // Vars
-let openPort = null;
+var formats = ["Listening to [TRACK | ARTIST]", "[TRACK | ARTIST]"];
+var emojis = [":musical_note:", ":headphones:", ":notes:"];
+var userToken = "";
 
-let slack = new Slack();
-slack.userToken = Config.SLACK_USER_TOKEN;
+let isLoggedIn = false;
+let ui, player;
+let openPort;
 
-let spotify = new Spotify();
-spotify.callbackURL = Config.SPOTIFY_CALLBACK_URL;
+let progress = 0;
+chrome.storage.sync.get().then(result => {
+    userToken = result.USER_TOKEN || userToken;
+    formats = result.FORMATS || formats;
+    emojis = result.EMOJIS || emojis;
 
-// Functions / Callbacks
-chrome.runtime.onConnect.addListener(port => {
-    openPort = port;
-    port.onMessage.addListener(message => {
-        if (message["caller"] == "Slackify") 
-            { EVENT_HANDLERS[message.event](message.args); }
-        else { console.log("Unhandled event: " + message.event); }
+    chrome.runtime.onConnect.addListener(port => {
+        openPort = port;
+    
+        port.onDisconnect
+            .addListener(() => openPort = null);
+    
+        port.onMessage.addListener(async message => {
+            if (message.caller != "Slackify:Popup" && 
+                message.caller != "Slackify:Content") { return; }
+            FUNCTION_DEFINES[message.function](message.args);
+        });
     });
 });
 
-const EVENT_HANDLERS = {
-    "OnAuthentication": async args => {
-        if ((spotify.appToken ??= args.appToken) == null)
-        {   
-            spotify.redirectToAuthCodeFlow();
+// Functions / Callbacks
+const FUNCTION_DEFINES = {
+    "save": async args => {
+        emojis = args.emojis || emojis;
+        formats = args.formats || formats;
+        userToken = args.userToken || userToken;
+
+        await chrome.storage.sync.set({ 
+            "EMOJIS": emojis ,
+            "FORMATS": formats ,
+            "USER_TOKEN": userToken
+        });
+
+        FUNCTION_DEFINES.tick(ui);
+    },
+
+    // Login
+    "login": () => {
+        isLoggedIn = true;
+        FUNCTION_DEFINES.onLogin();
+    },
+    "onLogin": () => {
+        FUNCTION_DEFINES.onTick();
+
+    },
+
+    // Tick.
+    "tick": async args => {
+        ui = args;
+
+        progress += 1;
+        var duration = 90;
+
+        var progressMinutes = Math.floor(progress / 60);
+        var durationMinutes = Math.floor(duration / 60);
+
+        openPort?.postMessage({ 
+            caller: "Slackify:Background", 
+            args: {
+                isLoggedIn: isLoggedIn,
+                label: "Resonance - HOME",
+                duration: pad(durationMinutes) + ":" + pad(duration - (durationMinutes * 60)),
+                progressText: pad(progressMinutes) + ":" + pad(progress - (progressMinutes * 60)),
+                progressValue: progress / duration,
+                emojis: emojis, formats: formats,
+                userToken: userToken,
+            }
+        });
+    },
+    "onTick": async () =>{
+        FUNCTION_DEFINES.tick(ui);
+    
+        if (!isLoggedIn)
+        {
+            console.log("Stopping tick loop of Slackify:background because the app is not logged in.");
             return;
         }
-
-        if ((spotify.userToken ??= args.userToken) == null)
-        {   
-            spotify.userToken = await spotify.getAccessToken();
-        }
-
-        console.log("Starting tick loop.");
-        onTick();
+    
+        setTimeout(FUNCTION_DEFINES.onTick, 1000 / TICK_HZ);
+        console.log("tick");
     }
-};
-
-async function onTick()
-{
-    if (spotify.appToken == null) { // kill the loop until restarted again.
-        console.log("Stopping tick loop due to having no Spotify app token.");
-        return; 
-    }
-
-    if (spotify.userToken == null) { // kill the loop until restarted again.
-        console.log("Stopping tick loop due to having no Spotify user token.");
-        return; 
-    }
-
-    try {
-        let player = await spotify.fetchPlayer();
-        if (!player.isPaused && player.hasChanged)
-        {
-            let displayString = Config.STATUS_FORMATS[
-                Math.floor(Math.random() * Config.STATUS_FORMATS.length)
-            ].replace("TRACK", player.track).replace("ARTIST", player.artist)
-
-            slack.setStatus(
-                displayString.length <= 100 ? displayString : 
-                    displayString = displayString.substring(0, 96) + "...", 
-                Config.EMOJIS[Math.floor(Math.random() * Config.EMOJIS.length)], 0
-            );
-        }
-    }   
-    catch (ex) { console.log(ex); }
-    setTimeout(onTick, Config.TICK_RATE_MS);
 }
-
-onTick();

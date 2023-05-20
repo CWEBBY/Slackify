@@ -3,12 +3,38 @@
 <head>
     <title>Slackify</title>
     <meta charset="utf-8">
+    
+    <link href="https://fonts.cdnfonts.com/css/gotham" rel="stylesheet">
     <link rel="stylesheet" href="styles/index.css">
+
     <script src="./scripts/popup.js" type="module"></script>
 </head>
 <body>
-    <div id="messageBox" class="popup">
-        <p id="messageBoxText"></p>
+    <button id="loginButton">LOG INTO SPOTIFY</button> 
+    <div id="loggedInPopup">
+        <div id="settingsHeader">
+            <img src="styles/favicon128.png">
+            <h2>SLACKIFY</h2>
+        </div>
+        <div id="settingsSection">
+            <label for="userToken">User Token:</label>
+            <textarea id="userTokenTextArea" name="userToken" id="" rows="1" placeholder="Save your Slack user token here." style="resize: none; width:100%;"></textarea>
+            <label for="formats">Formats:</label>
+            <textarea id="formatsTextarea" name="formats" id="" rows="1" placeholder="Add new status formats by adding new lines." style="resize: vertical; width:100%;"></textarea>
+            <label for="emojis">Emojis:</label>
+            <textarea id="emojisTextarea" name="emojis" id="" rows="1" placeholder="Add new status emojis by adding new lines." style="resize: vertical; width:100%;"></textarea>
+            <button id="saveButton" style="width: 90%; margin: 5%;">Save</button>
+        </div>
+        <div class="player">
+            <p class="playerLabel" id="playerLabel"></p>
+            <div class="playerBar">
+                <p class="playerLabel left"  id="playerProgressLabel"></p>
+                <div class="durationBar">
+                    <div class="progressBar" id="playerProgressBar"></div>
+                </div>
+                <p class="playerLabel right" id="playerDurationLabel"></p>
+            </div>
+        </div>
     </div>
 </body>
 </html>

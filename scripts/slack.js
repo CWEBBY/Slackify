@@ -2,8 +2,12 @@ console.log("Slackify:slack.js, cwebby.");
 
 // Exports
 export class Slack {
+    constructor(params = {}) {
+        this.userToken = params.userToken || null;
+    }
+
     // Members
-    userToken = null;
+    userToken;
 
     // Methods
     setStatus(text, icon, expirationTime) {
