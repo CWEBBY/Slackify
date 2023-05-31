@@ -1,5 +1,7 @@
 console.log("Slackify:slack.js, cwebby.");
 
+const STATUS_DAMPENER = 3000;
+
 // Exports
 export class Slack {
     constructor(params = {}) {
@@ -11,6 +13,8 @@ export class Slack {
 
     // Methods
     setStatus(text, icon, expirationTime) {
+        if (!this.userToken) { return; }
+
         return fetch("https://slack.com/api/users.profile.set", { 
             method: "POST", 
             headers: { 
@@ -20,7 +24,7 @@ export class Slack {
             body: JSON.stringify({
                 profile: {
                     status_text: text, status_emoji: icon, 
-                    status_expiration: expirationTime
+                    status_expiration: ((Date.now() - expirationTime) + STATUS_DAMPENER) / 1000
                 }
             })
         });
