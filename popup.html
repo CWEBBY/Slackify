@@ -10,6 +10,7 @@
     <script src="./scripts/popup.js" type="module"></script>
 </head>
 <body>
+    <div id="loadingLabel"><p>Initialising</p></div>
     <button id="loginButton">LOG INTO SPOTIFY</button> 
     <div id="loggedInPopup">
         <div id="settingsHeader">
@@ -18,11 +19,11 @@
         </div>
         <div id="settingsSection">
             <label for="userToken">User Token:</label>
-            <textarea id="userTokenTextArea" name="userToken" id="" rows="1" placeholder="Save your Slack user token here." style="resize: none; width:100%;"></textarea>
+            <textarea id="userTokenTextArea" name="userToken" id="" rows="1" placeholder="Add your Slack user token."></textarea>
             <label for="formats">Formats:</label>
-            <textarea id="formatsTextarea" name="formats" id="" rows="1" placeholder="Add new status formats by adding new lines." style="resize: vertical; width:100%;"></textarea>
+            <textarea id="formatsTextarea" name="formats" id="" rows="1" placeholder="Add new status formats."></textarea>
             <label for="emojis">Emojis:</label>
-            <textarea id="emojisTextarea" name="emojis" id="" rows="1" placeholder="Add new status emojis by adding new lines." style="resize: vertical; width:100%;"></textarea>
+            <textarea id="emojisTextarea" name="emojis" id="" rows="1" placeholder="Add new status emojis."></textarea>
             <button id="saveButton" style="width: 90%; margin: 5%;">Save</button>
         </div>
         <div class="player">

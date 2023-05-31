@@ -15,6 +15,8 @@ export class Slack {
     setStatus(text, icon, expirationTime) {
         if (!this.userToken) { return; }
 
+console.log(icon)
+
         return fetch("https://slack.com/api/users.profile.set", { 
             method: "POST", 
             headers: { 

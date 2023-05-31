@@ -47,14 +47,13 @@ chrome.storage.sync.get().then(result => {
 // Functions / Callbacks
 const FUNCTION_DEFINES = {
     "awake": () => {
-        if (!hasInitialised) { FUNCTION_DEFINES.tick(); }
         openPort?.postMessage(state);
     },
 
     "save": async args => {
-        emojis = args.emojis || emojis;
-        formats = args.formats || formats;
-        userToken = args.userToken || userToken;
+        state.formats = args.formats || formats;
+        state.emojis = emojis = args.emojis || emojis;
+        state.userToken = args.userToken || userToken;
 
         await chrome.storage.sync.set({ "EMOJIS": emojis ,
             "FORMATS": formats, "USER_TOKEN": userToken });
@@ -105,6 +104,8 @@ const FUNCTION_DEFINES = {
             artist: player.artist,
             title: player.title,
 
+            emojis: emojis,
+            formats: formats,
             userToken: userToken,
             emoji: emojis[Math.floor(Math.random() * formats.length)],
             label: formats[Math.floor(Math.random() * formats.length)]
