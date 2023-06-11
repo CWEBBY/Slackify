@@ -81,6 +81,7 @@ function tick() {
         emojisTextArea.value = emojiString;
     }
 
+    if (state.player == null) { return; }
     playerLabel.innerText = state.label;
 
 

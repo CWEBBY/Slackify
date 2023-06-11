@@ -50,10 +50,10 @@ async function tick() {
 
     try {
         let player = await spotify.fetch();
-        let hasChanged = state.player == null || 
-            state.player.track != player.track || 
-            state.player.artist != player.artist;
-        state.player = player || state.player;
+        let hasChanged = player != null && 
+            (state.player?.track != player.track || 
+            state.player?.artist != player.artist);
+        if (player != null) { state.player = player; }
 
         if (hasChanged) {
             let emoji = state.emojis[Math.floor(Math.random() * state.emojis.length)];
@@ -101,8 +101,6 @@ const CALLBACKS = {
             FORMATS: state.formats = args.formats,
             SLACK_USER_TOKEN: slack.userToken = state.userToken = args.userToken 
         });  
-
-        console.log(await chrome.storage.sync.get())
 
         openPort?.postMessage(state);
     } 
