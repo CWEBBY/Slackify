@@ -5,7 +5,7 @@ import { Spotify } from "./spotify.js";
 import { Slack } from "./slack.js";
 
 // Consts
-const TICK_HZ = .075;
+const TICK_HZ = .1;
 const DEFAULTS = {
     formats: ["Listening to [TRACK | ARTIST]", "[TRACK | ARTIST]"],
     emojis: [":musical_note:", ":headphones:", ":notes:"]

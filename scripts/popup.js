@@ -28,11 +28,11 @@ formatsTextArea.addEventListener('keydown', () => saveDirty = true);
 emojisTextArea.addEventListener('keydown', () => saveDirty = true);
 
 // Functions / Callbacks
-const port = chrome.runtime.connect({ name: "Slackify" });
-port.onMessage.addListener(message => state = message);
+var port = chrome.runtime.connect({ name: "Slackify" }); 
+port?.onMessage.addListener(message => state = message);
 
 function call(func, args = {}) { 
-    port.postMessage({ function: func, args: args }); 
+    port?.postMessage({ function: func, args: args }); 
 }
 
 loginButton.addEventListener('click', args => call("onLogin"));
