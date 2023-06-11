@@ -1,6 +1,6 @@
 console.log("Slackify:slack.js, cwebby.");
 
-const STATUS_DAMPENER = 3000;
+const STATUS_DAMPENER_MS = 3000;
 
 // Exports
 export class Slack {
@@ -24,7 +24,7 @@ export class Slack {
             body: JSON.stringify({
                 profile: {
                     status_text: text, status_emoji: icon, 
-                    status_expiration: ((Date.now() - expirationTime) + STATUS_DAMPENER) / 1000
+                    status_expiration: (expirationTime + STATUS_DAMPENER_MS) / 1000
                 }
             })
         });

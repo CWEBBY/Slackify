@@ -8,7 +8,7 @@ function call(func, args = {}) {
         function: func, args: args });
 }
 
-call("onLogin", {
+call("onLoggedIn", {
     error: params.get("error"),
-    appToken: params.get("code") 
+    code: params.get("code") 
 });

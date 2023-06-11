@@ -35,9 +35,9 @@ function call(func, args = {}) {
     port.postMessage({ function: func, args: args }); 
 }
 
-loginButton.addEventListener('click', args => call("login"));
+loginButton.addEventListener('click', args => call("onLogin"));
 saveButton.addEventListener('click', args => { saveDirty = false;
-    call("save", 
+    call("onSave", 
     { 
         userToken: userTokenTextArea.value,
         emojis: emojisTextArea.value.split('\n'), 
@@ -83,20 +83,24 @@ function tick() {
 
     playerLabel.innerText = state.label;
 
-    var progressMinutes = Math.floor(Math.floor(state.progress / 1000) / 60);
-    var durationMinutes = Math.floor(Math.floor(state.duration / 1000) / 60);
-    var durationSeconds = Math.floor((state.duration / 1000) - (durationMinutes * 60));
-    var progressSeconds = Math.floor((state.progress / 1000) - (progressMinutes * 60));
 
-    playerProgressBar.style.width = ((state.progress / state.duration) * 100) + "%";
+    state.player.progressMs = Math.min(state.player.progressMs, state.player.durationMs);
+    var progressMinutes = Math.floor(Math.floor(state.player.progressMs / 1000) / 60);
+    var durationMinutes = Math.floor(Math.floor(state.player.durationMs / 1000) / 60);
+    var progressSeconds = Math.floor((state.player.progressMs / 1000) - (progressMinutes * 60));
+    var durationSeconds = Math.floor((state.player.durationMs / 1000) - (durationMinutes * 60));
+
+    playerProgressBar.style.width = ((state.player.progressMs / state.player.durationMs) * 100) + "%";
     playerProgressLabel.innerText = pad(progressMinutes) + ":" + pad(progressSeconds);
     playerDurationLabel.innerText = pad(durationMinutes) + ":" + pad(durationSeconds);
 
-    let currentTime = new Date();
-    state.progress += (currentTime - time);
-    time = currentTime;
+    if (!state.player.isPaused) {
+        let currentTime = new Date();
+        state.player.progressMs += (currentTime - time);
+        time = currentTime;
+    }
 }
 
 // Init
-call("awake");
+call("onAwake");
 tick();

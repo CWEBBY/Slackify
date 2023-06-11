@@ -2,6 +2,7 @@ console.log("Slackify:spotify.js, cwebby.");
 
 // Consts
 const APP_ID = "bea8890bd8ec4c248ada2195b67b0db3";
+const APP_SECRET = "cf42a2372c8f40a2a87a32c72307d1b3";
 const APP_AUTH_CALLBACK_URL = "https://christopherwebb.net/slackify.html";
 
 // Functions
@@ -22,100 +23,107 @@ async function generateCodeChallenge(codeVerifier) {
         .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+var verifier = generateCodeVerifier(128);
+
 // Exports
 export class Spotify {
     // Members
-    appToken = null;
-    userToken = null;
+    refreshToken;
+    accessToken;
+
+    // Properties
+    get isLoggedIn() { return this.accessToken != null; }
 
     // Methods
-    async fetch() {
-        let retries = 3;
-        
-        while (retries > 0)
-        {
-            // Step 1: Take some shortcuts. No app or user token? get them.
-            if (!this.appToken) {
-                var verifier = generateCodeVerifier(128);
-                var challenge = await generateCodeChallenge(verifier);
-            
-                await chrome.storage.sync.set({ "SPOTIFY_VERIFIER": verifier });
-            
-                const params = new URLSearchParams();
+    async login(args = {}) {
+        let result = null;
+        let params = new URLSearchParams();
+
+        // If there isn't a refresh token saved...
+        if (!this.refreshToken) {
+            if (!args.code) {
                 params.append("client_id", APP_ID);
                 params.append("response_type", "code");
-                params.append("code_challenge", challenge);
                 params.append("code_challenge_method", "S256");
                 params.append("scope", "user-read-playback-state");
                 params.append("redirect_uri", APP_AUTH_CALLBACK_URL);
+                params.append("code_challenge", await generateCodeChallenge(verifier));
             
                 chrome.tabs.create({ url: `https://accounts.spotify.com/authorize?${params.toString()}` });
                 console.log("User thrown to Spotify login page.");
-                return null;
+                return;
             }
-            
-            if (!this.userToken) {
-                const params = new URLSearchParams();
-                params.append("code", this.appToken);
-                params.append("client_id", APP_ID);
-                params.append("grant_type", "authorization_code");
-                params.append("redirect_uri", APP_AUTH_CALLBACK_URL);
 
-                var storage = await chrome.storage.sync.get()
-                params.append("code_verifier", storage.SPOTIFY_VERIFIER);
-            
-                const result = await fetch("https://accounts.spotify.com/api/token", {
-                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                    method: "POST",
-                    body: params
-                });
-
-                if (!result.ok) { 
-                    this.appToken = this.userToken = null; 
-                    continue;
+            params.append("code", args.code);
+            params.append("client_id", APP_ID);
+            params.append("code_verifier", verifier);
+            params.append("grant_type", "authorization_code");
+            params.append("redirect_uri", APP_AUTH_CALLBACK_URL);
+        
+            result = await fetch("https://accounts.spotify.com/api/token", {
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                method: "POST",
+                body: params
+            });
+        }
+        // If there IS a refresh token saved. 
+        else {
+            params.append("client_id", APP_ID);
+            params.append("grant_type", "refresh_token");
+            params.append("refresh_token", this.refreshToken);
+        
+            result = await fetch("https://accounts.spotify.com/api/token", {
+                method: "POST", body: params, headers: { 
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Authorization": "Basic " + btoa(APP_ID + ":" + APP_SECRET) 
                 }
-
-                var { access_token } = await result.json();
-                this.userToken = access_token;
-            }
-
-            // Step 2: If we already HAVE tokens, we need to check they're valid. 
-            // Step 2.5: We do this backwards. We fetch the player, and if it works...
-            // ...great, but otherwise, the tokens are old. So get them again.
-            try {
-                const result = await fetch("https://api.spotify.com/v1/me/player", {
-                    method: "GET", headers: { Authorization: `Bearer ${this.userToken}` }
-                });
-            
-                if (!result.ok) { 
-                    this.appToken = this.userToken = null; 
-                    continue;
-                }
-
-                var response = await result.json();
-
-                let artistString = "";
-                for (var i = 0; i < response.item.artists.length; i++) {
-                    if (i > 0) { artistString += "/"; }
-                    artistString += response.item.artists[i].name;
-                }
-
-                return {
-                    artist: artistString,
-                    title: response.item.name,
-                    paused: response.is_playing,
-                    progress: response.progress_ms, 
-                    duration: response.item.duration_ms
-                };
-            }
-            catch (ex) {
-                console.error(ex);
-                return null;
-            }
-            
-            retries--;
+            });
         }
 
-        throw "RetriesExceeded";
+        if (!result.ok) {
+            console.error(await result.json())
+            this.refreshToken = null;
+            
+            return;
+        }
+        
+        var jsonResult = await result.json();
+        var { access_token, refresh_token } = jsonResult;
+
+        await chrome.storage.sync.set({ 
+            SPOTIFY_ACCESS_TOKEN: this.accessToken = access_token,
+            SPOTIFY_REFRESH_TOKEN: this.refreshToken = refresh_token
+        });        
+    }
+
+    async fetch() {
+        let result = await fetch("https://api.spotify.com/v1/me/player", {
+            method: "GET", headers: { Authorization: `Bearer ${this.accessToken}` }
+        });
+    
+        if (!result.ok){
+            await this.login();
+            await this.fetch();
+            return;
+        }
+
+        result = await result.json();
+        if (result.currently_playing_type != "track") { return null; }
+
+        let artistString = "";
+        for (var artist in result.item.artists) {
+            if (artist > 0) { artistString += "/"; }
+            artistString += result.item.artists[artist].name;
+        }
+        
+        return {
+            artist: artistString,
+            track: result.item.name,
+
+            isPaused: !result.is_playing,
+
+            progressMs: result.progress_ms,
+            durationMs: result.item.duration_ms,
+        };
     }
 }

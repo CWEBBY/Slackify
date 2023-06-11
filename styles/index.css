@@ -103,9 +103,14 @@ label {
     grid-template-columns: 15% 70% 15%;
 }
 
-.playerLabel { text-align: center; }
 .playerLabel.left { text-align: left; }
 .playerLabel.right { text-align: right; }
+
+.playerLabel { 
+    max-height: 100%;
+    text-align: center; 
+    text-overflow: clip;
+}
 
 @font-face {
     font-family: GothamMedium;

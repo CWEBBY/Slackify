@@ -5,121 +5,105 @@ import { Spotify } from "./spotify.js";
 import { Slack } from "./slack.js";
 
 // Consts
-const TICK_HZ = .5;
+const TICK_HZ = .075;
+const DEFAULTS = {
+    formats: ["Listening to [TRACK | ARTIST]", "[TRACK | ARTIST]"],
+    emojis: [":musical_note:", ":headphones:", ":notes:"]
+};
 
 // Vars
-var formats = ["Listening to [TRACK | ARTIST]", "[TRACK | ARTIST]"];
-var emojis = [":musical_note:", ":headphones:", ":notes:"];
-var userToken = "";
-
 let spotify = new Spotify();
 let slack = new Slack();
 
-let hasInitialised = false;
-let isLoggedIn = false;
 let state = null;
 let openPort;
 
 chrome.storage.sync.get().then(result => {
-    emojis = result.EMOJIS || emojis;
-    formats = result.FORMATS || formats;
-    userToken = result.USER_TOKEN || userToken;
+    spotify.refreshToken = result.SPOTIFY_REFRESH_TOKEN || null;
+    spotify.accessToken = result.SPOTIFY_ACCESS_TOKEN || null;
 
-    slack.userToken = result.USER_TOKEN || slack.userToken;
-    spotify.appToken = result.SPOTIFY_APP_TOKEN || spotify.appToken;
-    spotify.userToken = result.SPOTIFY_USER_TOKEN || spotify.userToken;
+    state = { 
+        emojis: result.EMOJIS || DEFAULTS.emojis,
+        formats: result.FORMATS || DEFAULTS.formats,
+        userToken: slack.userToken = result.SLACK_USER_TOKEN || null
+    };
 
     chrome.runtime.onConnect.addListener(port => {
         openPort = port;
     
-        openPort?.postMessage(null);
         port.onMessage.addListener(async message =>
-            FUNCTION_DEFINES[message.function](message.args));
+            CALLBACKS[message.function](message.args));
         port.onDisconnect.addListener(() => openPort = null);
     });
 
-    isLoggedIn = spotify.appToken != null;
-    hasInitialised = true;
-
-    FUNCTION_DEFINES.tick();
+    tick();
 });
 
 // Functions / Callbacks
-const FUNCTION_DEFINES = {
-    "awake": () => {
+async function tick() {
+    state.isLoggedIn = spotify.isLoggedIn;
+
+    if (!spotify.isLoggedIn) { 
+        console.log("Spotify not logged in. Killing tick loop.");
+        return;
+    }
+
+    try {
+        let player = await spotify.fetch();
+        let hasChanged = state.player == null || 
+            state.player.track != player.track || 
+            state.player.artist != player.artist;
+        state.player = player || state.player;
+
+        if (hasChanged) {
+            let emoji = state.emojis[Math.floor(Math.random() * state.emojis.length)];
+            let label = state.formats[Math.floor(Math.random() * state.formats.length)];
+            
+            label = label.replace("TRACK", player.track).replace("ARTIST", player.artist);
+            if (label.length > 99) { label = label.substring(0, 96) + "..."; }
+
+            state.label = label;
+            state.emoji = emoji;
+
+            let statusExpiration = Date.now() + (player.durationMs - player.progressMs);
+            slack.setStatus(label, emoji, statusExpiration)
+        }
+
         openPort?.postMessage(state);
-    },
+    }
+    catch (ex) {
+        console.error(ex);
+        return;
+    }
 
-    "save": async args => {
-        state.formats = args.formats || formats;
-        state.emojis = emojis = args.emojis || emojis;
-        state.userToken = args.userToken || userToken;
+    setTimeout(tick, 1000 / TICK_HZ);
+}
 
-        await chrome.storage.sync.set({ "EMOJIS": emojis ,
-            "FORMATS": formats, "USER_TOKEN": userToken });
-
-        FUNCTION_DEFINES.tick();
+const CALLBACKS = {
+    // Awake
+    "onAwake": () => {
+        openPort?.postMessage(state);
     },
 
     // Login
-    "login": async () => { spotify.fetch(); }, // kicks off the process.
-    "onLogin": async args => {
-        await chrome.storage.sync.set({ "SPOTIFY_APP_TOKEN": spotify.appToken = args.appToken });
-        isLoggedIn = spotify.appToken != null;
-        FUNCTION_DEFINES.tick();
+    "onLogin": () => spotify.login(),
+    "onLoggedIn": async args => {
+        if (args.error) { console.error(args.error); }
+        else { await spotify.login(args); }
+
+        tick();
     },
 
-    // Tick.
-    "tick": async () => {
-        if (!hasInitialised) { openPort?.postMessage(state); }
-            // Trick the UI into thinking we haven't initialised.
-        let player = !isLoggedIn ? null : await spotify.fetch();
+    // Save
+    "onSave": async args => {
+        await chrome.storage.sync.set({ 
+            EMOJIS: state.emojis = args.emojis,
+            FORMATS: state.formats = args.formats,
+            SLACK_USER_TOKEN: slack.userToken = state.userToken = args.userToken 
+        });  
 
-        if (!player)
-        {
-            isLoggedIn = false;
+        console.log(await chrome.storage.sync.get())
 
-            console.log("Stopping tick loop of Slackify:background because the app is not logged in.");
-            openPort?.postMessage({ isLoggedIn: isLoggedIn });
-            return;
-        }
-
-        // Made it this far? MUST have been successful, so save the working token.
-        await chrome.storage.sync.set({ "SPOTIFY_USER_TOKEN": spotify.userToken });
-
-        var hasChanged = state == null || 
-            player.paused != state?.paused || 
-            player.artist != state?.artist ||
-            player.title != state?.title;
-
-        state = !hasChanged ? state : {
-            isLoggedIn: isLoggedIn,
-            formats: formats,
-            emojis: emojis,
-
-            duration: player.duration,
-            progress: player.progress,
-
-            paused: player.paused,
-            artist: player.artist,
-            title: player.title,
-
-            emojis: emojis,
-            formats: formats,
-            userToken: userToken,
-            emoji: emojis[Math.floor(Math.random() * formats.length)],
-            label: formats[Math.floor(Math.random() * formats.length)]
-                .replace("TRACK", player.title).replace("ARTIST", player.artist)
-        };
-
-        if (state.label.length >= 100) 
-            { state.label = state.label.substring(0, 96) + "..."}
-
-        state.duration = player.duration;
-        state.progress = player.progress;
         openPort?.postMessage(state);
-
-        slack.setStatus(state.label, state.emoji, state.progress);
-        setTimeout(FUNCTION_DEFINES.tick, 1000 / TICK_HZ);
-    }
-}
+    } 
+};
