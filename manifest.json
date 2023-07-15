@@ -4,25 +4,27 @@
     "description": "Web control that broadcast to Slack.",
     "manifest_version": 3,
     "author": "CWEBBY",
+
     "action":{
-        "default_popup": "popup.html",
-        "default_title": "Slackify"
+        "default_title": "Slackify",
+        "default_popup": "./popup/popup.html"
     },
-    "icons": {
-        "128": "./styles/favicon128.png" 
-    },
-    "background": {
-        "service_worker": "./scripts/background.js",
-        "type": "module"
-    },
+
     "permissions": ["storage"],
-    "web_accessible_resources": [
-        {
-          "resources": [ "./style/GothamBold.ttf", "./style/GothamMedium.ttf" ],
-          "matches": [ "<all_urls>" ]
-        }
-    ],
-    "content_scripts": 
-        [ { "matches": ["https://christopherwebb.net/slackify.html*"], "js": ["./scripts/content.js"] } ],
+    "icons": { "128": "./popup/favicon.png" },
+
+    "content_scripts": [{ 
+        "matches": [
+            "https://christopherwebb.net/slackify.html*", 
+            "http://localhost:8080/slackify.html*"
+        ], 
+        "js": [
+            "modules/utils.js",
+            "modules/slack.js",
+            "modules/spotify.js",
+
+            "index.js"
+        ] 
+    }],
     "host_permissions": ["https://api.com/*", "https://slack.com/api/*"]
 }
