@@ -140,7 +140,9 @@ function tick() {
 
         playerLeftLabel.innerText = pad(progressMinutes) + ":" + pad(progressSeconds);
         playerRightLabel.innerText = pad(durationMinutes) + ":" + pad(durationSeconds);
-        playerBar.style.width = (player.progressMS / player.durationMS) + "%";
+
+        var barPercentage = Math.min(1, player.progressMS / player.durationMS);
+        playerBar.style.width = (barPercentage * 100) + "%";
 
         if (player.isPlaying) {
             let currentTime = new Date();
