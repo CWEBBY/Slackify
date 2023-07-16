@@ -4,7 +4,7 @@ const Spotify = {
     // Consts 
     CLIENT_ID: "bea8890bd8ec4c248ada2195b67b0db3",
     CLIENT_SECRET: "cf42a2372c8f40a2a87a32c72307d1b3",
-    CALLBACK_URL: "http://localhost:8080/slackify.html",
+    CALLBACK_URL: "https://christopherwebb.net/slackify.html",
 
     // Vars
     accessToken: null,
